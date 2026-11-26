@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src * data: blob:; media-src * data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'">
+<title>WEBRIX</title>
+<link rel="stylesheet" href="styles.css">
+<style id="uiCss"></style>
+</head>
+<body>
+<div id="wallpaper"><div id="wpImg"></div><div id="wpFx"><i></i></div><div id="wpDim"></div></div>
+<canvas id="particles"></canvas>
+
+<div id="app">
+  <header id="titlebar">
+    <button class="brand" id="brandBtn" title="WEBRIX – כרטיסייה חדשה">
+      <img src="logo.png" class="logo" alt="WEBRIX">
+    </button>
+    <div id="tabstrip">
+      <div id="pinnedTabs"></div>
+      <div id="tabs"></div>
+      <button id="newTabBtn" class="icon-btn" title="כרטיסייה חדשה (Ctrl+T)">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="drag-space"></div>
+    <div class="win-controls">
+      <button id="winMin" title="מזער"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+      <button id="winMax" title="הגדל"><svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1"/></svg></button>
+      <button id="winClose" class="close" title="סגור"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+    </div>
+  </header>
+
+  <nav id="toolbar">
+    <button class="tool-btn" id="backBtn" title="אחורה (Alt+←)"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="tool-btn" id="fwdBtn" title="קדימה (Alt+→)"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+    <button class="tool-btn" id="reloadBtn" title="רענן (F5)"><svg viewBox="0 0 24 24" class="i-reload"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4"/></svg><svg viewBox="0 0 24 24" class="i-stop"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+    <button class="tool-btn" id="homeBtn" title="דף הבית"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></button>
+
+    <div id="omnibox">
+      <span id="secureIcon"></span>
+      <input id="urlInput" spellcheck="false" autocomplete="off" placeholder="חפש או הקלד כתובת">
+      <button id="starBtn" class="mini-btn" title="הוסף לחיוג מהיר (Ctrl+D)"><svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg></button>
+      <div id="suggest"></div>
+      <div id="progress"></div>
+    </div>
+
+    <button class="tool-btn shield" id="shieldBtn" title="חוסם פרסומות">
+      <svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>
+      <span id="shieldCount">0</span>
+    </button>
+    <button class="tool-btn" id="welcomeBtn" hidden title="Welcome – הגדרות מהירות">
+      <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+    </button>
+    <button class="tool-btn" id="coreBtn" title="Control Core – ביצועים ומצב גיימינג (Ctrl+Shift+P)">
+      <svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4"/></svg>
+    </button>
+    <button class="tool-btn" id="customBtn" hidden title="התאמה אישית (Ctrl+,)">
+      <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.9 1.2-1.8-.5-1-.1-2.2 1.1-2.2H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10.5" cy="7" r="1.2"/><circle cx="15" cy="7.5" r="1.2"/></svg>
+    </button>
+    <button class="tool-btn" id="menuBtn" title="תפריט"><svg viewBox="0 0 24 24"><path d="M12 5.5h.01M12 12h.01M12 18.5h.01" stroke-width="3"/></svg></button>
+  </nav>
+
+  <div id="main">
+    <aside id="sidebar">
+      <div id="sideApps"></div>
+      <button id="sideAdd" class="side-btn" title="הוסף אפליקציה לסרגל"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg></button>
+      <div class="spacer"></div>
+      <button id="sideCore" class="side-btn" hidden title="Control Core"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></button>
+    </aside>
+    <section id="sidePanel">
+      <div class="sp-head">
+        <span id="spTitle"></span>
+        <button id="spReload" class="mini-btn" title="רענן"><svg viewBox="0 0 24 24"><path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4"/></svg></button>
+        <button id="spPop" class="mini-btn" title="פתח בכרטיסייה"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></button>
+        <button id="spClose" class="mini-btn" title="סגור"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+      </div>
+      <div id="spBody"></div>
+      <div id="spResize"></div>
+    </section>
+    <section id="views">
+      <div id="welcome" dir="rtl"></div>
+      <div id="newtab">
+        <div class="nt-inner">
+          <div class="nt-hero">
+            <div class="nt-clock" id="ntClock">00:00</div>
+            <div class="nt-greet" id="ntGreet"></div>
+            <div class="nt-date" id="ntDate"></div>
+          </div>
+          <form id="ntForm">
+            <svg viewBox="0 0 24 24" class="nt-search-ic"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>
+            <input id="ntSearch" autocomplete="off" spellcheck="false">
+          </form>
+          <div class="nt-tiles" id="ntTiles"></div>
+          <button class="nt-add" id="ntAdd"><svg viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></svg><span>הוסף אתר</span></button>
+        </div>
+        <button class="nt-custom" id="ntCustomize" title="התאמה אישית של הכרטיסייה החדשה"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>התאמה אישית</span></button>
+        <div class="nt-stats" id="ntStats" dir="rtl">
+          <div class="st ram"><span class="st-ic" data-i="ram"></span><div class="st-tx"><small>זיכרון</small><b id="stRam">–</b><div class="st-bar"><i id="stRamBar"></i></div></div></div>
+          <div class="st cpu"><span class="st-ic" data-i="cpu"></span><div class="st-tx"><small>מעבד</small><b id="stCpu">–</b><div class="st-bar"><i id="stCpuBar"></i></div></div></div>
+          <div class="st"><span class="st-ic" data-i="shield"></span><div class="st-tx"><small>נחסמו</small><b id="stBlocked">0</b></div></div>
+          <div class="st"><span class="st-ic" data-i="tabs"></span><div class="st-tx"><small>כרטיסיות</small><b id="stTabs">0</b></div></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="findbar" dir="rtl">
+    <input id="findInput" placeholder="חפש בעמוד" spellcheck="false">
+    <span id="findCount"></span>
+    <button class="mini-btn" id="findPrev" title="הקודם"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></button>
+    <button class="mini-btn" id="findNext" title="הבא"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button class="mini-btn" id="findClose" title="סגור"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<aside class="drawer" id="coreDrawer" dir="rtl">
+  <div class="drawer-head"><h2>Control Core</h2><button class="mini-btn drawer-close"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
+  <div class="drawer-body" id="coreBody"></div>
+</aside>
+<aside class="drawer" id="ntDrawer" dir="rtl">
+  <div class="drawer-head"><h2>כרטיסייה חדשה</h2><button class="mini-btn drawer-close"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
+  <div class="drawer-body" id="ntBody"></div>
+</aside>
+<aside class="drawer" id="customDrawer" dir="rtl">
+  <div class="drawer-head"><h2>Style Lab</h2><button class="mini-btn drawer-close"><svg viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button></div>
+  <div class="drawer-body" id="customBody"></div>
+</aside>
+
+<div id="ctxMenu" class="popover" dir="rtl"></div>
+<div id="toasts" dir="rtl"></div>
+<div id="modal"></div>
+
+<script src="state.js"></script>
+<script src="fx.js"></script>
+<script src="tabs.js"></script>
+<script src="panels.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

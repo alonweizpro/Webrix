@@ -1,0 +1,29 @@
+{
+  "name": "webrix-browser",
+  "productName": "Webrix",
+  "version": "1.0.0",
+  "description": "WEBRIX – דפדפן גיימינג מהיר עם Control Core, מצב גיימינג והתאמה אישית מלאה",
+  "main": "main.js",
+  "author": "WEBRIX",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "gg.webrix.browser",
+    "productName": "Webrix",
+    "files": ["main.js", "preload.js", "src/**/*", "assets/**/*"],
+    "win": { "target": "nsis", "icon": "assets/icon.png" },
+    "mac": { "target": "dmg", "icon": "assets/icon.png", "category": "public.app-category.games" },
+    "linux": { "target": "AppImage", "icon": "assets/icon.png", "category": "Network" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "WEBRIX" }
+  }
+}
