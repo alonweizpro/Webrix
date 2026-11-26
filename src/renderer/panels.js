@@ -951,6 +951,13 @@ const Welcome = {
       { type: 'toggle', key: 'restoreSession', label: 'שחזר כרטיסיות בהפעלה' },
       { type: 'toggle', key: 'forceDark', label: 'Dark Mode כפוי לכל האתרים' }
     ]));
+    const pr = el('div', 'upd-row');
+    const ptx = el('div');
+    ptx.append(el('b', '', 'הרשאות אתרים'), el('small', '', 'מצלמה, מיקרופון, התראות ומיקום שאישרת או חסמת לאתרים.'));
+    const pbtn = el('button', 'btn small', 'אפס הרשאות');
+    pbtn.onclick = async () => { await webrix.perm.clear(); UI.toast('ההרשאות אופסו. אתרים יבקשו שוב בפעם הבאה'); };
+    pr.append(ptx, pbtn);
+    b.append(pr);
     add('browse', 'גלישה', sec);
 
     // אפקטים

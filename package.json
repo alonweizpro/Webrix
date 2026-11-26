@@ -1,7 +1,7 @@
 {
   "name": "webrix-browser",
   "productName": "Webrix",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Webrix – דפדפן גיימינג מהיר עם Control Core, מצב גיימינג והתאמה אישית מלאה",
   "main": "main.js",
   "author": "alonweizpro",
@@ -22,9 +22,21 @@
   "build": {
     "appId": "gg.webrix.browser",
     "productName": "Webrix",
-    "files": ["main.js", "preload.js", "src/**/*", "assets/**/*"],
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "assets/**/*"
+    ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/icon.png",
       "artifactName": "Webrix-Setup-${version}.${ext}"
     },
@@ -45,6 +57,11 @@
     ],
     "releaseInfo": {
       "releaseNotesFile": "release-notes.md"
-    }
+    },
+    "electronLanguages": [
+      "he",
+      "en-US"
+    ],
+    "asar": true
   }
 }

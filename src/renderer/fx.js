@@ -49,6 +49,12 @@ const Particles = {
     this.cv.width = innerWidth * d; this.cv.height = innerHeight * d;
     this.ctx.setTransform(d, 0, 0, d, 0, 0);
   },
+  _colors: null, _colorKey: '',
+  colors() {
+    const key = Store.s.accent + Store.s.accent2;
+    if (key !== this._colorKey) { this._colorKey = key; this._colors = [hexToRgb(Store.s.accent), hexToRgb(Store.s.accent2)]; }
+    return this._colors;
+  },
   seed() {
     const n = Store.s.particleCount;
     this.pts = Array.from({ length: n }, () => ({
@@ -74,8 +80,7 @@ const Particles = {
     if (t - this.last < 33) return;
     this.last = t;
     const c = this.ctx, W = innerWidth, H = innerHeight, pts = this.pts;
-    const a1 = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb');
-    const a2 = getComputedStyle(document.documentElement).getPropertyValue('--accent2-rgb');
+    const [a1, a2] = this.colors();
     c.clearRect(0, 0, W, H);
     for (const p of pts) {
       const dx = p.x - this.mx, dy = p.y - this.my, d2 = dx * dx + dy * dy;

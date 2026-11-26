@@ -27,11 +27,17 @@ const Updates = {
       this.notifiedFor = v;
       UI.toast(`גרסה ${v} של WEBRIX זמינה`, { timeout: 9000, action: { label: 'פרטים', fn: () => this.open() } });
     }
+    if (s.state === 'installing' && prev !== 'installing') this.showInstalling();
     if (s.state === 'downloaded' && prev !== 'downloaded') {
       UI.toast('העדכון ירד ומוכן להתקנה', { timeout: 12000, action: { label: 'הפעל מחדש', fn: () => this.install() } });
     }
   },
 
+  showInstalling() {
+    const o = el('div', 'upd-overlay');
+    o.innerHTML = '<div><img src="logo.png" alt=""><b>מתקין את העדכון</b><small>WEBRIX ייסגר וייפתח מחדש מעצמו בעוד כמה שניות.</small><i></i></div>';
+    document.body.append(o);
+  },
   check() { this.apply({ state: 'checking', error: null }); webrix.update.check().then(s => s && this.apply(s)); },
   download() { webrix.update.download(); },
   install() { webrix.update.install(); },
@@ -49,6 +55,7 @@ const Updates = {
       case 'available': return `גרסה ${v} זמינה להורדה`;
       case 'downloading': return `מוריד את גרסה ${v || ''}… ${this.pct()}%`;
       case 'downloaded': return `גרסה ${v} מוכנה להתקנה`;
+      case 'installing': return 'מתקין את העדכון… WEBRIX ייפתח מחדש בעוד רגע.';
       case 'error': return 'לא הצלחנו לבדוק עדכונים. בדוק את החיבור לאינטרנט ונסה שוב.';
       case 'dev': return 'בדיקת עדכונים פועלת רק בגרסה המותקנת, לא כשמריצים npm start.';
       case 'unavailable': return 'רכיב העדכונים חסר. הרץ npm install בתיקיית הדפדפן.';
@@ -59,10 +66,10 @@ const Updates = {
   /* ---------- כפתור בסרגל העליון ---------- */
   renderPill() {
     const b = $('#updateBtn'), st = this.st.state;
-    b.hidden = !['available', 'downloading', 'downloaded'].includes(st);
-    b.classList.toggle('ready', st === 'downloaded');
+    b.hidden = !['available', 'downloading', 'downloaded', 'installing'].includes(st);
+    b.classList.toggle('ready', st === 'downloaded' || st === 'installing');
     const label = $('#updateLabel');
-    label.textContent = st === 'downloading' ? `${this.pct()}%` : st === 'downloaded' ? 'הפעל מחדש לעדכון' : 'עדכון זמין';
+    label.textContent = st === 'downloading' ? `${this.pct()}%` : st === 'installing' ? 'מתעדכן…' : st === 'downloaded' ? 'הפעל מחדש לעדכון' : 'עדכון זמין';
     b.title = this.statusText();
   },
 
@@ -125,6 +132,7 @@ const Updates = {
       box.append(el('small', 'upd-sub', 'אם תבחר "אחר כך", העדכון יותקן אוטומטית בפעם הבאה שתסגור את הדפדפן.'));
     }
     else if (st.state === 'checking') { const b = btn('בודק…', true, () => {}); b.disabled = true; btn('סגור', false, close); }
+    else if (st.state === 'installing') { const b = btn('מתקין…', true, () => {}); b.disabled = true; }
     else if (this.packaged && st.state !== 'unavailable') { btn('בדוק שוב', true, () => this.check()); btn('סגור', false, close); }
     else btn('סגור', true, close);
     box.append(bar);
@@ -155,5 +163,54 @@ const Updates = {
     if (st.state === 'downloading') {
       const bar = el('div', 'upd-bar'); const fill = el('i'); fill.style.width = this.pct() + '%'; bar.append(fill); w.append(bar);
     }
+  }
+};
+
+
+/* ============ בקשות הרשאה מאתרים ============ */
+const Perms = {
+  queue: [],
+  init() {
+    webrix.perm.onAsk(r => { this.queue.push(r); if (this.queue.length === 1) this.show(); });
+    webrix.perm.onCancel(({ id }) => {
+      const first = this.queue[0];
+      this.queue = this.queue.filter(r => r.id !== id);
+      if (first && first.id === id) this.show();
+    });
+  },
+  what(r) {
+    if (r.perm === 'media') {
+      const cam = r.media.includes('video'), mic = r.media.includes('audio');
+      return cam && mic ? 'להשתמש במצלמה ובמיקרופון' : cam ? 'להשתמש במצלמה' : mic ? 'להשתמש במיקרופון' : 'להשתמש במצלמה או במיקרופון';
+    }
+    return { notifications: 'לשלוח לך התראות', 'display-capture': 'לשתף את המסך שלך', geolocation: 'לדעת את המיקום שלך', midi: 'לגשת להתקני MIDI', midiSysex: 'לגשת להתקני MIDI' }[r.perm] || 'לקבל הרשאה מיוחדת';
+  },
+  show() {
+    const box = $('#permBox');
+    const r = this.queue[0];
+    box.innerHTML = '';
+    box.classList.toggle('open', !!r);
+    if (!r) return;
+    const host = (() => { try { return new URL(r.origin).host; } catch { return r.origin; } })();
+    const head = el('div', 'perm-head');
+    head.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>';
+    const tx = el('div');
+    tx.append(el('b', '', host), el('span', '', `רוצה ${this.what(r)}`));
+    head.append(tx);
+    const rem = el('label', 'perm-rem');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = true;
+    rem.append(cb, el('span', '', 'זכור את הבחירה לאתר הזה'));
+    const bar = el('div', 'perm-actions');
+    const answer = (allow) => {
+      webrix.perm.answer(r.id, allow, cb.checked);
+      this.queue.shift();
+      Sound.play(allow ? 'on' : 'off');
+      this.show();
+    };
+    const allow = el('button', 'btn primary small', 'אפשר'); allow.onclick = () => answer(true);
+    const deny = el('button', 'btn small', 'חסום'); deny.onclick = () => answer(false);
+    bar.append(allow, deny);
+    box.append(head, rem, bar);
+    Sound.play('alert');
   }
 };

@@ -137,10 +137,11 @@ const Tabs = {
         Store.set('homeTiles', tiles.map(x => hostOf(x.url) === h ? { ...x, icon: t.favicon } : x));
       }
     });
-    on('did-navigate', e => { t.url = e.url; t.blocked = 0; this.render(t); History.add(e.url, t.title); Session.save(); });
+    on('did-navigate', e => { t.url = e.url; t.blocked = 0; t.audible = false; this.render(t); History.add(e.url, t.title); Session.save(); });
     on('did-navigate-in-page', e => { if (e.isMainFrame) { t.url = e.url; this.render(t); History.add(e.url, t.title); Session.save(); } });
     on('media-started-playing', () => { t.audible = true; this.render(t); });
     on('media-paused', () => { t.audible = false; this.render(t); });
+    on('destroyed', () => { if (t === this.active) document.body.classList.remove('html-fs'); });
     on('found-in-page', e => Find.result(e.result));
     on('enter-html-full-screen', () => document.body.classList.add('html-fs'));
     on('leave-html-full-screen', () => document.body.classList.remove('html-fs'));
@@ -163,6 +164,7 @@ const Tabs = {
     if (prev === t) { if (t.sleeping) { this.mount(t); this.render(t); } return; }
     this.active = t;
     t.lastActive = Date.now();
+    document.body.classList.remove('html-fs');   // מסך מלא של סרטון לא נשאר "תקוע" במעבר כרטיסייה
     if (prev) prev.lastActive = Date.now();
     if (t.sleeping) this.mount(t);
     for (const x of this.list) if (x.wv) x.wv.classList.toggle('inactive', x !== t);
@@ -188,6 +190,7 @@ const Tabs = {
     if (t.wv) t.wv.remove();
     t.el.remove();
     this.list.splice(i, 1);
+    if (t === this.active) document.body.classList.remove('html-fs');
     if (this.active === t) {
       this.active = null;
       const n = this.list.filter(x => !x.pinned).length ? (this.list[i] && !this.list[i].pinned ? this.list[i] : this.list[i - 1]) : null;
@@ -219,8 +222,13 @@ const Tabs = {
     return true;
   },
 
+  // האם הכרטיסייה משמיעה קול עכשיו (שואל את Chromium ישירות, כי אירועי הניגון לא תמיד מגיעים)
+  isAudible(x) {
+    if (!x.wv || !x.ready) return false;
+    try { return x.wv.isCurrentlyAudible(); } catch { return x.audible; }
+  },
   eligibleToSleep() {
-    return this.list.filter(x => x !== this.active && x.wv && !x.audible);
+    return this.list.filter(x => x !== this.active && x.wv && !this.isAudible(x));
   },
 
   sleepIdle() {

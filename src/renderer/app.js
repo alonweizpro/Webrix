@@ -154,8 +154,15 @@ const UI = {
   },
 
   /* ---------- Drawers ---------- */
+  built: {},
+  ensureBuilt(name) {
+    if (!name || this.built[name]) return;
+    this.built[name] = true;
+    ({ core: CorePanel, custom: CustomPanel, nt: NtPanel })[name].build();
+  },
   openDrawer(name) {
     if (this.drawer === name) name = null;
+    this.ensureBuilt(name);
     this.drawer = name;
     $('#coreDrawer').classList.toggle('open', name === 'core');
     $('#customDrawer').classList.toggle('open', name === 'custom');
@@ -425,9 +432,11 @@ const UI = {
             try { await webrix.clearData(); } catch { /* ignore */ }
             History.clear();
           }
+          // מחילים את ברירות המחדל במקום, בלי טעינה מחדש: כל רכיב מתעדכן מיד, והשמירה נכתבת מיד לדיסק
+          Store.patch(fresh);
           clearTimeout(Store._t);
-          try { localStorage.setItem('nx-settings', JSON.stringify(fresh)); } catch { /* ignore */ }
-          location.reload();   // טעינה מחדש של הממשק עם ההגדרות החדשות; הכרטיסיות משוחזרות
+          try { localStorage.setItem('nx-settings', JSON.stringify(Store.s)); } catch { /* ignore */ }
+          this.toast('ההגדרות שוחזרו לברירת המחדל');
         }
       }]
     });
@@ -449,11 +458,8 @@ const UI = {
   Tabs.init();
   UI.init();
   Sidebar.render();
-  CorePanel.build();
-  CustomPanel.build();
-  NtPanel.build();
-  Updates.init();
   NewTab.init();
+  // לוחות ההגדרות (Control Core, Style Lab, כרטיסייה חדשה) נבנים רק בפתיחה הראשונה שלהם
 
   const pushConfig = () => webrix.config.set({
     adblock: Store.s.adblock, adblockAllow: Store.s.adblockAllow, gpuBoost: Store.s.gpuBoost,
@@ -483,7 +489,10 @@ const UI = {
   });
 
   if (!Session.restore()) Tabs.create(NEWTAB, { silent: true });
-  Perf.start();
+  // עבודה שלא נחוצה לציור הראשון נדחית לרגע שהדפדפן פנוי
+  const idle = window.requestIdleCallback || ((f) => setTimeout(f, 200));
+  Perms.init();
+  idle(() => { Perf.start(); Updates.init(); }, { timeout: 1500 });
 
   Welcome.ensurePinned();
   if (!Store.s.setupDone) { Store.set('firstRun', false); Welcome.open(); }

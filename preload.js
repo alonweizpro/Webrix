@@ -25,6 +25,13 @@ contextBridge.exposeInMainWorld('webrix', {
   onSearch: on('search'),
   onAdblock: on('adblock:count'),
   onDownload: on('dl'),
+  perm: {
+    answer: (id, allow, remember) => ipcRenderer.send('perm:answer', { id, allow, remember }),
+    list: () => ipcRenderer.invoke('perm:list'),
+    clear: () => ipcRenderer.invoke('perm:clear'),
+    onAsk: on('perm:ask'),
+    onCancel: on('perm:cancel')
+  },
   update: {
     get: () => ipcRenderer.invoke('update:get'),
     check: () => ipcRenderer.invoke('update:check'),

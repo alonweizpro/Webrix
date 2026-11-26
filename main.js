@@ -9,14 +9,18 @@ const WEB_PARTITION = 'persist:web';
 
 // ---------- Config (נשמר בצד ה-main כדי שיהיה זמין לפני הפעלת Chromium) ----------
 const CONFIG_PATH = path.join(app.getPath('userData'), 'webrix-config.json');
-const DEFAULTS = { adblock: true, adblockAllow: [], gpuBoost: true, netLimitOn: false, netLimitMbps: 20, autoCheckUpdates: true };
+const DEFAULTS = { adblock: true, adblockAllow: [], gpuBoost: true, netLimitOn: false, netLimitMbps: 20, autoCheckUpdates: true, sitePerms: {}, bounds: null };
 let config = loadConfig();
 function loadConfig() {
   try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) }; }
   catch { return { ...DEFAULTS }; }
 }
-function saveConfig() {
-  try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2)); } catch { /* ignore */ }
+let saveTimer = null;
+function saveConfig(now = false) {
+  // כתיבה מושהית: כמה שינויים רצופים נכתבים לדיסק פעם אחת
+  clearTimeout(saveTimer);
+  const write = () => { try { fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2)); } catch { /* ignore */ } };
+  if (now) write(); else saveTimer = setTimeout(write, 400);
 }
 
 // ---------- דגלי ביצועים של Chromium ----------
@@ -28,29 +32,55 @@ if (config.gpuBoost) {
 app.commandLine.appendSwitch('enable-features', 'BackForwardCache,ParallelDownloading');
 nativeTheme.themeSource = 'dark';
 
-if (!app.requestSingleInstanceLock()) { app.quit(); }
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
 
 let win = null;
 const send = (ch, data) => { if (win && !win.isDestroyed()) win.webContents.send(ch, data); };
 
+function validBounds(b) {
+  if (!b || !(b.width >= 900 && b.height >= 560)) return null;
+  const { screen } = require('electron');
+  // החלון חייב להיות לפחות חלקית על מסך שקיים עכשיו (למשל אחרי ניתוק מסך שני)
+  const onScreen = screen.getAllDisplays().some(d => {
+    const a = d.workArea;
+    return b.x < a.x + a.width - 100 && b.x + b.width > a.x + 100 && b.y >= a.y - 20 && b.y < a.y + a.height - 100;
+  });
+  return onScreen ? b : null;
+}
+
 function createWindow() {
   const isMac = process.platform === 'darwin';
+  const saved = validBounds(config.bounds);
   win = new BrowserWindow({
-    width: 1440, height: 900, minWidth: 900, minHeight: 560,
+    width: saved?.width || 1440, height: saved?.height || 900,
+    ...(saved ? { x: saved.x, y: saved.y } : {}),
+    minWidth: 900, minHeight: 560,
     frame: isMac, titleBarStyle: isMac ? 'hiddenInset' : undefined,
+    // מוצג מיד עם רקע כהה, במקום לחכות שכל הממשק ייבנה: הפתיחה מרגישה מיידית
     backgroundColor: '#0a0a12', show: false,
     icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, nodeIntegration: false, sandbox: true,
-      webviewTag: true, spellcheck: false
+      webviewTag: true, spellcheck: false,
+      v8CacheOptions: 'bypassHeatCheck'   // שומר קוד מקומפל כבר מההפעלה הראשונה
     }
   });
   Menu.setApplicationMenu(null);
+  if (saved?.maximized) win.maximize();
+  win.show();
   win.loadFile(path.join(__dirname, 'src', 'renderer', 'index.html'));
-  win.once('ready-to-show', () => win.show());
   const state = () => send('win:state', { maximized: win.isMaximized(), fullscreen: win.isFullScreen() });
   ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'].forEach(e => win.on(e, state));
+  const rememberBounds = () => {
+    if (!win || win.isDestroyed() || win.isMinimized() || win.isFullScreen()) return;
+    const b = win.isMaximized() ? win.getNormalBounds() : win.getBounds();
+    config.bounds = { ...b, maximized: win.isMaximized() };
+    saveConfig();
+  };
+  ['resize', 'move', 'maximize', 'unmaximize'].forEach(e => win.on(e, rememberBounds));
+  win.on('close', () => { rememberBounds(); saveConfig(true); });
   win.on('closed', () => { win = null; });
 }
 
@@ -91,27 +121,76 @@ function applyNetLimit(ses) {
   }
 }
 
+// חוסם הפרסומות מחובר לבקשות רק כשהוא פעיל: כשהוא כבוי אין שום עלות לכל בקשה
+let adblockAttached = false;
+function applyAdblock(ses) {
+  if (config.adblock && !adblockAttached) {
+    ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => {
+      if (d.resourceType === 'mainFrame') return cb({});
+      let host;
+      try { host = new URL(d.url).hostname; } catch { return cb({}); }
+      if (!isBlocked(host)) return cb({});
+      if (config.adblockAllow.length) {
+        const th = topHost(d.webContentsId);
+        if (th && config.adblockAllow.includes(th)) return cb({});
+      }
+      noteBlocked(d.webContentsId);
+      cb({ cancel: true });
+    });
+    adblockAttached = true;
+  } else if (!config.adblock && adblockAttached) {
+    ses.webRequest.onBeforeRequest(null);
+    adblockAttached = false;
+  }
+}
+
+// ---------- הרשאות אתרים ----------
+// מסך מלא, נעילת עכבר (משחקים) והעתקה מותרים תמיד. מצלמה, מיקרופון, שיתוף מסך, התראות ומיקום:
+// האתר מבקש והמשתמש מאשר או חוסם. אפשר לזכור את הבחירה לכל אתר.
+const PERM_AUTO = new Set(['fullscreen', 'pointerLock', 'keyboardLock', 'clipboard-sanitized-write']);
+const PERM_ASK = new Set(['media', 'notifications', 'display-capture', 'geolocation', 'midi', 'midiSysex']);
+const permPending = new Map();
+let permSeq = 0;
+const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
+function setupPermissions(ses) {
+  ses.setPermissionRequestHandler((wc, perm, cb, details = {}) => {
+    if (PERM_AUTO.has(perm)) return cb(true);
+    if (!PERM_ASK.has(perm)) return cb(false);
+    const origin = originOf(details.requestingUrl || wc.getURL());
+    if (!origin) return cb(false);
+    const media = (details.mediaTypes || []).filter(Boolean);
+    const key = `${origin}|${perm}${media.length ? ':' + [...media].sort().join('+') : ''}`;
+    if (key in config.sitePerms) return cb(config.sitePerms[key]);
+    const id = ++permSeq;
+    const timer = setTimeout(() => { if (permPending.has(id)) { permPending.delete(id); cb(false); send('perm:cancel', { id }); } }, 60000);
+    permPending.set(id, { cb, key, timer });
+    send('perm:ask', { id, origin, perm, media });
+  });
+  ses.setPermissionCheckHandler((wc, perm, origin) => {
+    if (!PERM_ASK.has(perm)) return true;
+    const o = originOf(origin);
+    return Object.entries(config.sitePerms).some(([k, v]) => v === true && k.startsWith(`${o}|${perm}`));
+  });
+}
+ipcMain.on('perm:answer', (e, { id, allow, remember }) => {
+  const p = permPending.get(id);
+  if (!p) return;
+  permPending.delete(id);
+  clearTimeout(p.timer);
+  if (remember) { config.sitePerms = { ...config.sitePerms, [p.key]: !!allow }; saveConfig(); }
+  p.cb(!!allow);
+});
+ipcMain.handle('perm:list', () => config.sitePerms);
+ipcMain.handle('perm:clear', () => { config.sitePerms = {}; saveConfig(); return true; });
+
 function setupSession(ses) {
   // User-Agent נקי (אתרים כמו WhatsApp/Discord חוסמים "Electron")
   ses.setUserAgent(ses.getUserAgent()
     .replace(/\sElectron\/\S+/i, '')
     .replace(/\s(Webrix|WEBRIX|webrix-browser)\/\S+/i, ''));
 
-  ses.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => {
-    if (!config.adblock || d.resourceType === 'mainFrame') return cb({});
-    let host;
-    try { host = new URL(d.url).hostname; } catch { return cb({}); }
-    if (!isBlocked(host)) return cb({});
-    const th = topHost(d.webContentsId);
-    if (th && config.adblockAllow.includes(th)) return cb({});
-    noteBlocked(d.webContentsId);
-    cb({ cancel: true });
-  });
-
-  ses.setPermissionRequestHandler((wc, perm, cb) => {
-    const allowed = ['fullscreen', 'pointerLock', 'media', 'notifications', 'clipboard-sanitized-write', 'display-capture', 'keyboardLock'];
-    cb(allowed.includes(perm));
-  });
+  applyAdblock(ses);
+  setupPermissions(ses);
 
   ses.on('will-download', (e, item) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -196,6 +275,9 @@ app.on('web-contents-created', (e, contents) => {
     prefs.backgroundThrottling = true;
   });
   contents.on('before-input-event', (ev, input) => {
+    // רק מהחלון הראשי ומהאתרים שבתוכו: לא מחלון התחברות קופץ ולא מכלי המפתחים
+    const ours = (win && contents === win.webContents) || (contents.getType() === 'webview' && win && contents.hostWebContents === win.webContents);
+    if (!ours) return;
     const s = matchShortcut(input);
     if (s) { ev.preventDefault(); send('shortcut', s); }
   });
@@ -226,10 +308,10 @@ ipcMain.handle('config:set', (e, patch) => {
   const before = { ...config };
   config = { ...config, ...patch };
   saveConfig();
-  if (before.netLimitOn !== config.netLimitOn || before.netLimitMbps !== config.netLimitMbps) {
-    applyNetLimit(session.fromPartition(WEB_PARTITION));
-  }
-  return config;
+  const ses = session.fromPartition(WEB_PARTITION);
+  if (before.netLimitOn !== config.netLimitOn || before.netLimitMbps !== config.netLimitMbps) applyNetLimit(ses);
+  if (before.adblock !== config.adblock) applyAdblock(ses);
+  return { ok: true };
 });
 
 ipcMain.handle('metrics', () => {
@@ -253,8 +335,13 @@ ipcMain.handle('metrics', () => {
 
 // ---------- עדכונים (Windows, דרך GitHub Releases) ----------
 // לא מוריד ולא מתקין כלום לבד: בודק, מודיע, ומוריד/מתקין רק כשהמשתמש לוחץ.
+// נטען רק אחרי שהחלון כבר פתוח: הספרייה כבדה ואין סיבה שתעכב את ההפעלה
 let updater = null;
-try { updater = require('electron-updater').autoUpdater; } catch { updater = null; }
+function loadUpdater() {
+  if (updater) return updater;
+  try { updater = require('electron-updater').autoUpdater; } catch { updater = null; }
+  return updater;
+}
 const upd = { state: 'idle', info: null, progress: null, error: null, checkedAt: null };
 function updSend(patch) { Object.assign(upd, patch); send('update:state', upd); }
 function cleanInfo(i) {
@@ -268,8 +355,11 @@ function cleanInfo(i) {
     .replace(/\n{3,}/g, '\n\n').trim();
   return { version: i.version, date: i.releaseDate || null, notes: notes.slice(0, 4000) };
 }
+let updaterReady = false;
 function setupUpdater() {
-  if (!updater) { updSend({ state: 'unavailable' }); return; }
+  if (updaterReady) return;
+  updaterReady = true;
+  if (!loadUpdater()) { updSend({ state: 'unavailable' }); return; }
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = true;   // עדכון שכבר ירד יותקן כשסוגרים את הדפדפן
   updater.allowPrerelease = false;
@@ -284,6 +374,7 @@ function setupUpdater() {
   updater.on('error', err => updSend({ state: 'error', error: String((err && err.message) || err).slice(0, 300) }));
 }
 async function checkUpdates() {
+  setupUpdater();
   if (!updater) return upd;
   if (!app.isPackaged) { updSend({ state: 'dev' }); return upd; }
   if (['checking', 'downloading', 'downloaded'].includes(upd.state)) return upd;
@@ -302,7 +393,10 @@ ipcMain.handle('update:download', async () => {
 });
 ipcMain.on('update:install', () => {
   // התקנה שקטה והפעלה מחדש של הדפדפן אחרי העדכון
-  if (updater && upd.state === 'downloaded') setImmediate(() => updater.quitAndInstall(true, true));
+  if (!updater || upd.state !== 'downloaded') return;
+  updSend({ state: 'installing' });
+  saveConfig(true);
+  setTimeout(() => updater.quitAndInstall(true, true), 600);   // זמן להציג "מתעדכן…" לפני הסגירה
 });
 
 ipcMain.handle('clear-data', async () => {
@@ -314,11 +408,12 @@ ipcMain.handle('clear-data', async () => {
 
 // ---------- Lifecycle ----------
 app.whenReady().then(() => {
+  if (!gotLock) return;
   setupSession(session.fromPartition(WEB_PARTITION));
   createWindow();
-  setupUpdater();
+  setTimeout(setupUpdater, 3000);                // רכיב העדכונים נטען אחרי שהדפדפן כבר פתוח
   const autoCheck = () => { if (config.autoCheckUpdates !== false) checkUpdates(); };
-  setTimeout(autoCheck, 8000);                   // בדיקה אחרי ההפעלה
+  setTimeout(autoCheck, 10000);                  // בדיקה אחרי ההפעלה
   setInterval(autoCheck, 6 * 60 * 60 * 1000);    // ושוב כל 6 שעות
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 });
