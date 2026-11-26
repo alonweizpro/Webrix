@@ -24,5 +24,12 @@ contextBridge.exposeInMainWorld('webrix', {
   onOpenTab: on('tab:open'),
   onSearch: on('search'),
   onAdblock: on('adblock:count'),
-  onDownload: on('dl')
+  onDownload: on('dl'),
+  update: {
+    get: () => ipcRenderer.invoke('update:get'),
+    check: () => ipcRenderer.invoke('update:check'),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.send('update:install'),
+    onState: on('update:state')
+  }
 });

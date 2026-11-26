@@ -1,23 +1,41 @@
 # WEBRIX
 A gaming browser—simple. Open-source based (Chromium).
 
-דפדפן גיימינג מבוסס Chromium (Electron) עם דגש על ביצועים והתאמה אישית.
+דפדפן גיימינג ל-Windows, מבוסס Chromium (Electron), עם דגש על ביצועים והתאמה אישית.
 
-## התקנה והרצה
+## התקנה והרצה מהקוד
 דרוש **Node.js 20 ומעלה** (https://nodejs.org).
 
 ```bash
 cd Webrix
-npm install        # מוריד את Electron (~100MB)
+npm install        # מוריד את Electron (~100MB) ואת רכיב העדכונים
 npm start          # מריץ את הדפדפן
 ```
 
+אם `npm start` נכשל עם "Electron failed to install correctly", לוחצים פעמיים על `install-electron.bat`.
+
 ## בניית קובץ התקנה
 ```bash
-npm run dist:win     # Windows → dist/Webrix Setup 1.0.0.exe
-npm run dist:mac     # macOS  → .dmg   (חייב לרוץ על מק)
-npm run dist:linux   # Linux  → .AppImage
+npm run dist       # → dist/Webrix-Setup-1.0.0.exe
 ```
+
+## עדכונים
+הדפדפן בודק ב-GitHub Releases אם יצאה גרסה חדשה: בהפעלה, אחרי 8 שניות, ואז כל 6 שעות. אפשר גם לבדוק ידנית ב-Welcome ← עדכונים, או בתפריט ⋮ ← בדוק עדכונים.
+- כשיש גרסה חדשה מופיעים כפתור **"עדכון זמין"** בסרגל העליון וחלון עם רשימת החידושים.
+- שום דבר לא יורד ולא מותקן בלי לחיצה: **הורד עדכון** ← **הפעל מחדש ועדכן**.
+- אם בוחרים "אחר כך", עדכון שכבר ירד מותקן בפעם הבאה שסוגרים את הדפדפן.
+- מורידים רק את מה שהשתנה (differential update), לא את כל ה-90MB מחדש.
+- הבדיקה פועלת רק בגרסה המותקנת, לא כשמריצים `npm start`.
+
+## הוצאת גרסה חדשה
+1. מעלים את מספר הגרסה ב-`package.json`, למשל `"version": "1.1.0"`.
+2. כותבים מה חדש בקובץ `release-notes.md`. זה מה שהמשתמשים יראו בחלון העדכון.
+3. שומרים ודוחפים ל-GitHub (commit + push).
+4. ב-GitHub: **Actions** ← **Release Windows** ← **Run workflow**.
+
+אחרי כ-10 דקות הגרסה מופיעה ב-**Releases**, וכל הדפדפנים המותקנים יציעו אותה. אפשר גם לדחוף תגית במקום שלב 4: `git tag v1.1.0 && git push origin v1.1.0`.
+
+> קובץ ההתקנה לא חתום דיגיטלית, לכן Windows יציג "Windows protected your PC" בהתקנה הראשונה. ממשיכים עם **More info** ← **Run anyway**. העדכונים עצמם מותקנים בלי האזהרה הזו.
 
 ## מה יש בפנים
 

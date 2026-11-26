@@ -1,0 +1,54 @@
+# בונה את קובץ ההתקנה ל-Windows ומפרסם אותו ב-GitHub Releases.
+# הדפדפנים של המשתמשים בודקים את ה-Releases ומציעים את העדכון.
+#
+# שתי דרכים להפעיל:
+#   1. ב-GitHub: Actions → "Release Windows" → Run workflow   (משתמש בגרסה שב-package.json)
+#   2. דחיפת תגית:  git tag v1.1.0 && git push origin v1.1.0  (התגית חייבת להתאים לגרסה ב-package.json)
+name: Release Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Version in package.json: $VERSION"
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            if [[ "${GITHUB_REF_NAME#v}" != "$VERSION" ]]; then
+              echo "::error::The tag $GITHUB_REF_NAME does not match version $VERSION in package.json"
+              exit 1
+            fi
+          elif git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Version $VERSION was already released. Raise the version in package.json first."
+            exit 1
+          fi
+
+      - name: Install
+        run: npm install
+
+      - name: Build and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always

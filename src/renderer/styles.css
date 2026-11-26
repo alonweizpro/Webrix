@@ -492,6 +492,34 @@ body.nt-editing .nt-custom { display: none; }
 .seg button:hover { color: var(--text); }
 .seg button.on { background: rgba(var(--text-rgb), .12); color: var(--text); font-weight: 600; }
 
+/* ---------- Updates ---------- */
+.upd-pill { padding: 0 12px; gap: 7px; font-size: 12.5px; font-weight: 600; color: var(--accent); border: 1px solid rgba(var(--accent-rgb), .45); }
+.upd-pill:hover:not(:disabled) { color: var(--accent); background: rgba(var(--accent-rgb), .1); }
+.upd-pill svg { width: 17px; height: 17px; }
+.upd-pill.ready { background: var(--accent); color: #fff; border-color: transparent; }
+.upd-pill.ready:hover:not(:disabled) { background: var(--accent); color: #fff; filter: brightness(1.1); }
+#updateLabel { font-variant-numeric: tabular-nums; }
+.upd-head { display: flex; gap: 14px; align-items: center; }
+.upd-head b { display: block; font-size: 14.5px; }
+.upd-head small { color: var(--muted); font-size: 12px; }
+.upd-ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none; background: rgba(var(--text-rgb), .07); }
+.upd-ic.ok { background: var(--accent); color: #fff; }
+.upd-ic svg { width: 21px; height: 21px; }
+.upd-label { margin: 18px 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.upd-notes { max-height: 220px; overflow-y: auto; padding: 12px 14px; border-radius: 10px; background: rgba(var(--bg-rgb), .6); border: 1px solid var(--line);
+  white-space: pre-wrap; line-height: 1.65; font-size: 13px; user-select: text; }
+.upd-bar { height: 6px; border-radius: 6px; background: rgba(var(--text-rgb), .1); margin-top: 16px; overflow: hidden; direction: ltr; }
+.upd-bar i { display: block; height: 100%; width: 0; border-radius: 6px; background: var(--accent); transition: width .4s var(--ease); }
+.upd-sub { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+.upd-err { display: block; margin-top: 12px; color: #ff8080; font-size: 11.5px; direction: ltr; text-align: left; word-break: break-word; }
+.upd-panel { display: flex; flex-direction: column; }
+.upd-row { display: flex; align-items: center; gap: 16px; padding: 14px 16px; border-radius: var(--radius); background: rgba(var(--text-rgb), .04); border: 1px solid var(--line); }
+.upd-row > div { flex: 1; min-width: 0; }
+.upd-row b { display: block; font-size: 14px; }
+.upd-row small { color: var(--muted); font-size: 12.5px; }
+.upd-panel .upd-bar { margin-top: 10px; }
+.modal-box .upd-panel { margin-top: 14px; }
+
 /* ---------- Find bar ---------- */
 #findbar { position: absolute; top: calc(var(--tab-h) + var(--bar-h) + 16px); right: 18px; z-index: 30; display: none; align-items: center; gap: 4px; padding: 6px;
   border-radius: var(--radius); border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,.5); }

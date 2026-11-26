@@ -961,6 +961,11 @@ const Welcome = {
     ]));
     add('fx', 'אפקטים', sec);
 
+    // עדכונים
+    [sec, b] = this.section('עדכונים', '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', 'גרסה חדשה לא תותקן בלי שתאשר.');
+    b.append(Updates.panel(), this.rows([{ type: 'toggle', key: 'autoCheckUpdates', label: 'בדוק עדכונים אוטומטית' }]));
+    add('updates', 'עדכונים', sec);
+
     // כלים
     [sec, b] = this.section('כלים', WICONS.bolt, 'הגדרות מתקדמות ונתוני גלישה.');
     const links = el('div', 'wc-links');

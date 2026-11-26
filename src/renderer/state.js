@@ -140,6 +140,7 @@ const DEFAULTS = {
   gmSleepBg: false, gmNoFx: false,
   // Mods
   forceDark: false, siteCss: '', uiCss: '',
+  autoCheckUpdates: true,
   homeTiles: [
     { title: 'YouTube', url: 'https://www.youtube.com' },
     { title: 'Twitch', url: 'https://www.twitch.tv' },

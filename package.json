@@ -2,16 +2,18 @@
   "name": "webrix-browser",
   "productName": "Webrix",
   "version": "1.0.0",
-  "description": "WEBRIX – דפדפן גיימינג מהיר עם Control Core, מצב גיימינג והתאמה אישית מלאה",
+  "description": "Webrix – דפדפן גיימינג מהיר עם Control Core, מצב גיימינג והתאמה אישית מלאה",
   "main": "main.js",
-  "author": "WEBRIX",
+  "author": "alonweizpro",
   "license": "MIT",
+  "repository": "https://github.com/alonweizpro/Webrix",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   },
   "devDependencies": {
     "electron": "^39.0.0",
@@ -21,9 +23,28 @@
     "appId": "gg.webrix.browser",
     "productName": "Webrix",
     "files": ["main.js", "preload.js", "src/**/*", "assets/**/*"],
-    "win": { "target": "nsis", "icon": "assets/icon.png" },
-    "mac": { "target": "dmg", "icon": "assets/icon.png", "category": "public.app-category.games" },
-    "linux": { "target": "AppImage", "icon": "assets/icon.png", "category": "Network" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "shortcutName": "WEBRIX" }
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "assets/icon.png",
+      "artifactName": "Webrix-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "shortcutName": "Webrix",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "alonweizpro",
+        "repo": "Webrix",
+        "releaseType": "release"
+      }
+    ],
+    "releaseInfo": {
+      "releaseNotesFile": "release-notes.md"
+    }
   }
 }

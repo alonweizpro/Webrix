@@ -9,7 +9,7 @@ const WEB_PARTITION = 'persist:web';
 
 // ---------- Config (נשמר בצד ה-main כדי שיהיה זמין לפני הפעלת Chromium) ----------
 const CONFIG_PATH = path.join(app.getPath('userData'), 'webrix-config.json');
-const DEFAULTS = { adblock: true, adblockAllow: [], gpuBoost: true, netLimitOn: false, netLimitMbps: 20 };
+const DEFAULTS = { adblock: true, adblockAllow: [], gpuBoost: true, netLimitOn: false, netLimitMbps: 20, autoCheckUpdates: true };
 let config = loadConfig();
 function loadConfig() {
   try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) }; }
@@ -251,6 +251,60 @@ ipcMain.handle('metrics', () => {
   };
 });
 
+// ---------- עדכונים (Windows, דרך GitHub Releases) ----------
+// לא מוריד ולא מתקין כלום לבד: בודק, מודיע, ומוריד/מתקין רק כשהמשתמש לוחץ.
+let updater = null;
+try { updater = require('electron-updater').autoUpdater; } catch { updater = null; }
+const upd = { state: 'idle', info: null, progress: null, error: null, checkedAt: null };
+function updSend(patch) { Object.assign(upd, patch); send('update:state', upd); }
+function cleanInfo(i) {
+  if (!i) return null;
+  let notes = i.releaseNotes;
+  if (Array.isArray(notes)) notes = notes.map(n => n.note || '').join('\n');
+  notes = String(notes || '')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|li|h\d|div)>/gi, '\n').replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/\n{3,}/g, '\n\n').trim();
+  return { version: i.version, date: i.releaseDate || null, notes: notes.slice(0, 4000) };
+}
+function setupUpdater() {
+  if (!updater) { updSend({ state: 'unavailable' }); return; }
+  updater.autoDownload = false;
+  updater.autoInstallOnAppQuit = true;   // עדכון שכבר ירד יותקן כשסוגרים את הדפדפן
+  updater.allowPrerelease = false;
+  updater.on('checking-for-update', () => updSend({ state: 'checking', error: null }));
+  updater.on('update-available', info => updSend({ state: 'available', info: cleanInfo(info), checkedAt: Date.now() }));
+  updater.on('update-not-available', () => updSend({ state: 'latest', checkedAt: Date.now() }));
+  updater.on('download-progress', p => updSend({
+    state: 'downloading',
+    progress: { percent: p.percent, bps: p.bytesPerSecond, transferred: p.transferred, total: p.total }
+  }));
+  updater.on('update-downloaded', info => updSend({ state: 'downloaded', info: cleanInfo(info) || upd.info }));
+  updater.on('error', err => updSend({ state: 'error', error: String((err && err.message) || err).slice(0, 300) }));
+}
+async function checkUpdates() {
+  if (!updater) return upd;
+  if (!app.isPackaged) { updSend({ state: 'dev' }); return upd; }
+  if (['checking', 'downloading', 'downloaded'].includes(upd.state)) return upd;
+  try { await updater.checkForUpdates(); }
+  catch (e) { updSend({ state: 'error', error: String(e.message || e).slice(0, 300) }); }
+  return upd;
+}
+ipcMain.handle('update:get', () => ({ ...upd, version: app.getVersion(), packaged: app.isPackaged }));
+ipcMain.handle('update:check', () => checkUpdates());
+ipcMain.handle('update:download', async () => {
+  if (!updater || upd.state !== 'available') return upd;
+  updSend({ state: 'downloading', progress: { percent: 0, bps: 0, transferred: 0, total: 0 } });
+  try { await updater.downloadUpdate(); }
+  catch (e) { updSend({ state: 'error', error: String(e.message || e).slice(0, 300) }); }
+  return upd;
+});
+ipcMain.on('update:install', () => {
+  // התקנה שקטה והפעלה מחדש של הדפדפן אחרי העדכון
+  if (updater && upd.state === 'downloaded') setImmediate(() => updater.quitAndInstall(true, true));
+});
+
 ipcMain.handle('clear-data', async () => {
   const ses = session.fromPartition(WEB_PARTITION);
   await ses.clearCache();
@@ -262,6 +316,10 @@ ipcMain.handle('clear-data', async () => {
 app.whenReady().then(() => {
   setupSession(session.fromPartition(WEB_PARTITION));
   createWindow();
+  setupUpdater();
+  const autoCheck = () => { if (config.autoCheckUpdates !== false) checkUpdates(); };
+  setTimeout(autoCheck, 8000);                   // בדיקה אחרי ההפעלה
+  setInterval(autoCheck, 6 * 60 * 60 * 1000);    // ושוב כל 6 שעות
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
 });
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });

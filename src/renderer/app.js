@@ -63,7 +63,7 @@ const UI = {
     const t = Tabs.active;
     if (!t) return;
     const inp = $('#urlInput');
-    if (document.activeElement !== inp) inp.value = t.url === NEWTAB ? '' : t.url;
+    if (document.activeElement !== inp) inp.value = isInternal(t.url) ? '' : t.url;
     const ready = t.wv && t.ready;
     $('#backBtn').disabled = !(ready && t.wv.canGoBack());
     $('#fwdBtn').disabled = !(ready && t.wv.canGoForward());
@@ -239,6 +239,7 @@ const UI = {
       { label: 'Control Core', hint: 'Ctrl+Shift+P', fn: () => this.openDrawer('core') },
       { label: 'Style Lab', hint: 'Ctrl+,', fn: () => this.openDrawer('custom') },
       { label: 'ניקוי נתוני גלישה…', fn: () => this.clearDataDialog() },
+      { label: 'בדוק עדכונים', fn: () => Updates.open() },
       { label: 'אודות WEBRIX', fn: () => this.about() }
     ], x, y);
   },
@@ -396,10 +397,9 @@ const UI = {
     });
   },
   about() {
-    this.modal({
-      title: 'WEBRIX 1.0',
-      body: 'דפדפן גיימינג מבוסס Chromium עם Control Core (RAM/CPU/Network Limiter), Tab Sleeping, מצב גיימינג מותאם אישית, חוסם פרסומות מובנה ו-Style Lab להתאמה אישית מלאה.'
-    });
+    const b = el('div');
+    b.append(el('p', 'modal-text', 'דפדפן גיימינג מבוסס Chromium עם Control Core, כרטיסיות רדומות, מצב גיימינג מותאם אישית, חוסם פרסומות מובנה ו-Style Lab להתאמה אישית מלאה.'), Updates.panel());
+    this.modal({ title: `WEBRIX ${Updates.version || ''}`, body: b });
   }
 };
 
@@ -416,16 +416,17 @@ const UI = {
   CorePanel.build();
   CustomPanel.build();
   NtPanel.build();
+  Updates.init();
   NewTab.init();
 
   const pushConfig = () => webrix.config.set({
     adblock: Store.s.adblock, adblockAllow: Store.s.adblockAllow, gpuBoost: Store.s.gpuBoost,
-    netLimitOn: Store.s.netLimitOn, netLimitMbps: Store.s.netLimitMbps
+    netLimitOn: Store.s.netLimitOn, netLimitMbps: Store.s.netLimitMbps, autoCheckUpdates: Store.s.autoCheckUpdates
   });
   pushConfig();
 
   const THEME_KEYS = new Set(['accent', 'accent2', 'bg', 'surface', 'text', 'radius', 'blur', 'glass', 'wallpaper', 'wallpaperMode', 'wallpaperDim', 'font', 'density', 'tabStyle', 'rgbBorder', 'rgbSpeed', 'showSidebar', 'uiCss', 'sidePanelWidth', 'gmNoFx', 'ntStats', 'ntClockWeight', 'ntClockSize', 'ntClockFont', 'ntClockColor', 'ntClockStyle', 'ntTileSize', 'ntTileShape', 'ntSearchStyle', 'ntAlign', 'ntGreeting', 'ntDate', 'ntSearch', 'ntTiles', 'ntTileLabels']);
-  const CONFIG_KEYS = new Set(['adblock', 'adblockAllow', 'gpuBoost', 'netLimitOn', 'netLimitMbps']);
+  const CONFIG_KEYS = new Set(['adblock', 'adblockAllow', 'gpuBoost', 'netLimitOn', 'netLimitMbps', 'autoCheckUpdates']);
   let netT = 0;
   Store.on((k) => {
     Controls.notify(k);
