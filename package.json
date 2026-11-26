@@ -1,7 +1,7 @@
 {
   "name": "webrix-browser",
   "productName": "Webrix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Webrix – דפדפן גיימינג מהיר עם Control Core, מצב גיימינג והתאמה אישית מלאה",
   "main": "main.js",
   "author": "alonweizpro",
