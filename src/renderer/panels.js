@@ -341,7 +341,9 @@ const CustomPanel = {
       title: 'לאפס את העיצוב?', body: 'כל הצבעים, הטפט וה-Mods יחזרו לברירת המחדל.',
       actions: [{ label: 'ביטול' }, { label: 'איפוס', primary: true, fn: () => { const p = {}; KEYS.forEach(k => { p[k] = structuredClone(DEFAULTS[k]); }); Store.patch(p); } }]
     });
-    w.append(exp, imp, reset, file);
+    const all = el('button', 'btn ghost danger', 'שחזר את כל הגדרות הדפדפן');
+    all.onclick = () => UI.resetDialog();
+    w.append(exp, imp, reset, all, file);
     return w;
   },
 
@@ -985,6 +987,17 @@ const Welcome = {
     });
     b.append(links);
     add('tools', 'כלים', sec);
+
+    // איפוס
+    [sec, b] = this.section('איפוס', WICONS.redo, 'מחזיר את WEBRIX להגדרות שהיו בהתקנה.');
+    const rr = el('div', 'upd-row');
+    const rtx = el('div');
+    rtx.append(el('b', '', 'שחזור הגדרות ברירת מחדל'), el('small', '', 'מאפס את כל ההגדרות. לפני האיפוס אפשר לבחור מה לשמור.'));
+    const rbtn = el('button', 'btn small danger', 'שחזר ברירות מחדל');
+    rbtn.onclick = () => UI.resetDialog();
+    rr.append(rtx, rbtn);
+    b.append(rr);
+    add('reset', 'איפוס', sec);
   }
 };
 

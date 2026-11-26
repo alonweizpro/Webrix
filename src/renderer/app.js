@@ -240,6 +240,7 @@ const UI = {
       { label: 'Style Lab', hint: 'Ctrl+,', fn: () => this.openDrawer('custom') },
       { label: 'ניקוי נתוני גלישה…', fn: () => this.clearDataDialog() },
       { label: 'בדוק עדכונים', fn: () => Updates.open() },
+      { label: 'שחזור הגדרות ברירת מחדל…', fn: () => this.resetDialog() },
       { label: 'אודות WEBRIX', fn: () => this.about() }
     ], x, y);
   },
@@ -394,6 +395,41 @@ const UI = {
     this.modal({
       title: 'ניקוי נתוני גלישה', body: 'ימחקו: מטמון, עוגיות, התחברויות לאתרים והיסטוריה. ההגדרות והעיצוב נשמרים.',
       actions: [{ label: 'ביטול' }, { label: 'נקה הכל', primary: true, fn: async () => { await webrix.clearData(); History.clear(); this.toast('הנתונים נוקו'); } }]
+    });
+  },
+  resetDialog() {
+    const body = el('div', 'reset');
+    body.append(el('p', 'modal-text', 'כל ההגדרות יחזרו למצב ההתחלתי: ערכת נושא, רקע, מצב גיימינג, כרטיסייה חדשה, Mods ושאר ההגדרות. הכרטיסיות הפתוחות נשארות.'));
+    const opt = (label, hint) => {
+      const row = el('label', 'check');
+      const cb = el('input'); cb.type = 'checkbox';
+      const tx = el('span');
+      tx.append(el('b', '', label), el('small', '', hint));
+      row.append(cb, tx);
+      body.append(row);
+      return cb;
+    };
+    const keepLists = opt('השאר את הקיצורים ואת אפליקציות סרגל הצד', 'האתרים בחיוג המהיר והאפליקציות שהוספת לא יימחקו.');
+    keepLists.checked = true;
+    const wipe = opt('מחק גם נתוני גלישה', 'היסטוריה, עוגיות, התחברויות לאתרים ומטמון.');
+    this.modal({
+      title: 'שחזור הגדרות ברירת מחדל', body,
+      actions: [{ label: 'ביטול' }, {
+        label: 'אפס את הדפדפן', primary: true, fn: async () => {
+          const s = Store.s;
+          const fresh = structuredClone(DEFAULTS);
+          fresh.firstRun = false;
+          fresh.setupDone = true;
+          if (keepLists.checked) { fresh.homeTiles = s.homeTiles; fresh.sidebarApps = s.sidebarApps; }
+          if (wipe.checked) {
+            try { await webrix.clearData(); } catch { /* ignore */ }
+            History.clear();
+          }
+          clearTimeout(Store._t);
+          try { localStorage.setItem('nx-settings', JSON.stringify(fresh)); } catch { /* ignore */ }
+          location.reload();   // טעינה מחדש של הממשק עם ההגדרות החדשות; הכרטיסיות משוחזרות
+        }
+      }]
     });
   },
   about() {
